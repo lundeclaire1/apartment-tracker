@@ -1,6 +1,6 @@
 # Apartment Tracker
 
-A simple, private apartment-hunting tracker. Everything runs in your browser — no accounts, no servers, no data leaves your computer.
+A simple, private apartment-hunting tracker by **[Claire Lunde](https://github.com/lundeclaire1)**. Everything runs in your browser — no accounts, no servers, no data leaves your computer.
 
 **Try it:** open the live version (link in the repo's About section) or download `index.html` and open it in your browser.
 
@@ -25,3 +25,7 @@ All apartment data is stored in your browser's localStorage. Nothing is sent to 
 ## License
 
 MIT — use it, fork it, share it with friends.
+
+## Author
+
+Made by Claire Lunde · [github.com/lundeclaire1](https://github.com/lundeclaire1)

@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="author" content="Claire Lunde">
+<meta name="description" content="Private apartment-hunting tracker. Runs entirely in your browser — no accounts, no servers.">
 <title>Apartment Tracker</title>
 <style>
   :root {
@@ -462,6 +464,21 @@
     max-width: 600px;
     line-height: 1.6;
   }
+  /* Site footer */
+  .site-footer {
+    text-align: center;
+    padding: 40px 16px 24px;
+    color: var(--muted);
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+  .site-footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .site-footer a:hover { text-decoration: underline; }
+  .site-footer .sep { margin: 0 6px; opacity: 0.5; }
   /* Mobile polish */
   @media (max-width: 600px) {
     header { padding: 14px 16px; }
@@ -744,6 +761,12 @@
   </div>
 
   <div id="grid" class="grid"></div>
+
+  <footer class="site-footer">
+    Built by <a href="https://github.com/lundeclaire1" target="_blank" rel="noopener">Claire Lunde</a>
+    <span class="sep">·</span>
+    <a href="https://github.com/lundeclaire1/apartment-tracker" target="_blank" rel="noopener">View source on GitHub</a>
+  </footer>
 </main>
 
 <div class="modal-backdrop" id="modal-backdrop">
