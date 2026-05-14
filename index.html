@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apartment Tracker</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --card: #ffffff;
+    --border: #e5e5e0;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --accent: #2c5f4f;
+    --accent-light: #e8f0ed;
+    --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-hover: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 0;
+    line-height: 1.5;
+  }
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 600;
+  }
+  .stats {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.9; }
+  .btn-secondary {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-danger {
+    background: #c44545;
+  }
+  input, select, textarea {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    color: var(--text);
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 32px 80px;
+  }
+  .filters {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .filters input[type="search"] {
+    flex: 1;
+    min-width: 200px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+    transition: box-shadow 0.15s, transform 0.15s;
+    display: flex;
+    flex-direction: column;
+  }
+  .card:hover { box-shadow: var(--shadow-hover); }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .card-title {
+    font-weight: 600;
+    font-size: 15px;
+    margin: 0;
+    line-height: 1.3;
+  }
+  .card-title a {
+    color: var(--text);
+    text-decoration: none;
+  }
+  .card-title a:hover { color: var(--accent); text-decoration: underline; }
+  .rent {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 4px 0 8px;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .chip {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .status-saved          { background: #eef0f3; color: #4a5568; }
+  .status-messaged       { background: #fff4d6; color: #8a6500; }
+  .status-replied        { background: #d6e8ff; color: #1a4a8a; }
+  .status-tour-scheduled { background: #d6ecf0; color: #1a5a6a; }
+  .status-toured         { background: #e0d6ff; color: #5530a8; }
+  .status-applied        { background: #ffe0d6; color: #a83a10; }
+  .status-accepted       { background: #d6f5e0; color: #1a6a30; }
+  .status-rejected       { background: #f5d6d6; color: #8a1a1a; }
+  .status-passed         { background: #e8e8e8; color: #555; }
+  .pros-cons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 8px 0;
+    font-size: 13px;
+  }
+  .pros-cons div {
+    background: var(--bg);
+    padding: 6px 8px;
+    border-radius: 6px;
+    min-height: 30px;
+  }
+  .pros-cons .label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+  .pros .label { color: #1a6a30; }
+  .cons .label { color: #8a1a1a; }
+  .notes {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 8px 0;
+    white-space: pre-wrap;
+  }
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .card-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    padding: 4px 8px;
+    font-size: 13px;
+    border-radius: 4px;
+  }
+  .icon-btn:hover { background: var(--bg); color: var(--text); }
+  .meta {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  /* Modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    z-index: 100;
+    overflow-y: auto;
+    padding: 40px 16px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    width: 100%;
+    max-width: 600px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+  }
+  .modal h2 { margin: 0 0 16px; font-size: 18px; }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .form-row { display: flex; flex-direction: column; gap: 4px; }
+  .form-row.full { grid-column: 1 / -1; }
+  .form-row label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .form-row textarea {
+    min-height: 60px;
+    resize: vertical;
+    font-family: inherit;
+  }
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .empty {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--muted);
+  }
+  .empty h2 { font-size: 18px; color: var(--text); margin-bottom: 8px; }
+  .status-pipeline {
+    display: flex;
+    gap: 4px;
+    margin: 10px 0;
+    flex-wrap: wrap;
+  }
+  .status-pipeline button {
+    font-size: 11px;
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    background: white;
+    border-radius: 12px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .status-pipeline button.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .status-pipeline button:hover:not(.active) {
+    background: var(--bg);
+  }
+  /* Stars */
+  .stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 26px;
+    line-height: 1;
+  }
+  .stars .star {
+    color: var(--border);
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.1s;
+  }
+  .stars .star.filled { color: #f5b800; }
+  .btn-clear-stars {
+    margin-left: 10px;
+    background: none;
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .btn-clear-stars:hover { background: var(--bg); }
+  .card-stars {
+    font-size: 15px;
+    color: #f5b800;
+    letter-spacing: 2px;
+    margin: 2px 0 8px;
+    line-height: 1;
+  }
+  /* Photo */
+  .card-photo {
+    height: 180px;
+    margin: -16px -16px 12px;
+    background-size: cover;
+    background-position: center;
+    background-color: var(--bg);
+    border-radius: 10px 10px 0 0;
+  }
+  .photo-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .photo-preview {
+    width: 140px;
+    height: 90px;
+    border-radius: 6px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .photo-preview.has-photo { color: transparent; }
+  .photo-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+  }
+  .photo-actions .btn { width: fit-content; }
+  @media (max-width: 600px) {
+    .form-grid { grid-template-columns: 1fr; }
+    header, main { padding-left: 16px; padding-right: 16px; }
+  }
+  /* Save status */
+  .save-status {
+    font-size: 12px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .save-status.saved   { color: #1a6a30; }
+  .save-status.dirty   { color: #a85a10; }
+  .save-status.linked  { color: var(--accent); }
+  .save-status .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    display: inline-block;
+  }
+  .save-status a {
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  /* Appointments rail */
+  .appointments {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 32px;
+  }
+  .appointments-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .appointments h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+    margin: 0 0 8px;
+    font-weight: 600;
+  }
+  .appointments-list {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .appointment-chip {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    min-width: 220px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .appointment-chip:hover {
+    border-color: var(--accent);
+  }
+  .appointment-chip.today {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .appointment-when {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .appointment-where {
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 240px;
+  }
+  /* Tour date on card */
+  .card-tour-date {
+    display: inline-block;
+    background: var(--accent-light);
+    color: var(--accent);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  /* Autofill box */
+  .autofill-box {
+    background: var(--accent-light);
+    border: 1px solid #c8dcd5;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+  .autofill-box .label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .autofill-row {
+    display: flex;
+    gap: 8px;
+  }
+  .autofill-row input { flex: 1; }
+  .autofill-status {
+    font-size: 12px;
+    margin-top: 6px;
+    min-height: 18px;
+  }
+  .autofill-status.success { color: #1a6a30; }
+  .autofill-status.warn    { color: #a85a10; }
+  .autofill-status.error   { color: #8a1a1a; }
+  .autofill-status.loading { color: var(--muted); }
+  .autofill-status a {
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  /* Bookmarklet */
+  .bookmarklet-link {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    cursor: grab;
+    margin: 8px 0;
+  }
+  .bookmarklet-link:active { cursor: grabbing; }
+  .instructions ol { padding-left: 20px; margin: 8px 0; }
+  .instructions li { margin: 10px 0; font-size: 14px; line-height: 1.5; }
+  kbd {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 12px;
+    font-family: ui-monospace, monospace;
+  }
+  /* Dirty banner */
+  .banner {
+    background: #fff4d6;
+    border-bottom: 1px solid #f0e0a0;
+    color: #6a4a00;
+    padding: 10px 32px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .banner-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+  }
+  .banner button {
+    background: #6a4a00;
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .banner button:hover { opacity: 0.9; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-row">
+    <div>
+      <h1>Apartment Tracker</h1>
+      <div class="stats" id="stats">0 apartments</div>
+      <div class="save-status" id="save-status"></div>
+    </div>
+    <div class="toolbar">
+      <button class="btn-secondary btn" id="link-btn" onclick="linkFile()" style="display:none">Auto-save to file…</button>
+      <button class="btn-secondary btn" id="pull-btn" onclick="pullFromFile()" style="display:none">⟳ Pull latest</button>
+      <button class="btn-secondary btn" onclick="exportData()">Save backup</button>
+      <button class="btn-secondary btn" onclick="document.getElementById('import-file').click()">Load backup</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+      <button class="btn" onclick="openModal()">+ Add Apartment</button>
+    </div>
+  </div>
+</header>
+<div class="banner" id="banner" style="display:none">
+  <div class="banner-inner">
+    <span id="banner-text"></span>
+    <button onclick="exportData()">Save backup now</button>
+  </div>
+</div>
+
+<section class="appointments" id="appointments" style="display:none">
+  <div class="appointments-inner">
+    <h2>Upcoming tours</h2>
+    <div class="appointments-list" id="appointments-list"></div>
+  </div>
+</section>
+
+<main>
+  <div class="filters">
+    <input type="search" id="search" placeholder="Search by address, notes, anything..." oninput="render()">
+    <select id="filter-status" onchange="render()">
+      <option value="">All statuses</option>
+      <option value="saved">Saved</option>
+      <option value="messaged">Messaged</option>
+      <option value="replied">Replied</option>
+      <option value="tour-scheduled">Tour Scheduled</option>
+      <option value="toured">Toured</option>
+      <option value="applied">Applied</option>
+      <option value="accepted">Accepted</option>
+      <option value="rejected">Rejected</option>
+      <option value="passed">Passed</option>
+    </select>
+    <select id="sort" onchange="render()">
+      <option value="rating-desc">Rating: high to low</option>
+      <option value="updated-desc">Recently updated</option>
+      <option value="added-desc">Recently added</option>
+      <option value="added-asc">Oldest first</option>
+      <option value="rent-asc">Rent: low to high</option>
+      <option value="rent-desc">Rent: high to low</option>
+      <option value="address">Address A–Z</option>
+    </select>
+  </div>
+
+  <div id="grid" class="grid"></div>
+</main>
+
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal">
+    <h2 id="modal-title">Add Apartment</h2>
+    <form id="apt-form" onsubmit="saveApt(event)">
+      <input type="hidden" id="apt-id">
+      <div class="autofill-box">
+        <span class="label">Auto-fill from a listing link</span>
+        <div class="autofill-row">
+          <input type="text" id="paste-url" placeholder="Paste a Zillow, StreetEasy, Craigslist… URL">
+          <button type="button" class="btn" onclick="autoFillFromUrl()">Fetch</button>
+        </div>
+        <div class="autofill-status" id="autofill-status"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row full">
+          <label for="address">Address / Name *</label>
+          <input type="text" id="address" required placeholder="123 Main St, Apt 4B">
+        </div>
+        <div class="form-row">
+          <label for="rent">Monthly Rent</label>
+          <input type="number" id="rent" placeholder="2400" min="0">
+        </div>
+        <div class="form-row">
+          <label for="beds">Bed / Bath</label>
+          <input type="text" id="beds" placeholder="1BR / 1BA">
+        </div>
+        <div class="form-row">
+          <label for="sqft">Square Feet</label>
+          <input type="number" id="sqft" placeholder="650" min="0">
+        </div>
+        <div class="form-row">
+          <label for="source">Source</label>
+          <input type="text" id="source" placeholder="Zillow, StreetEasy, broker...">
+        </div>
+        <div class="form-row full">
+          <label for="url">Listing URL</label>
+          <input type="url" id="url" placeholder="https://...">
+        </div>
+        <div class="form-row full">
+          <label for="status">Status</label>
+          <select id="status">
+            <option value="saved">Saved</option>
+            <option value="messaged">Messaged</option>
+            <option value="replied">Replied</option>
+            <option value="tour-scheduled">Tour Scheduled</option>
+            <option value="toured">Toured</option>
+            <option value="applied">Applied</option>
+            <option value="accepted">Accepted</option>
+            <option value="rejected">Rejected</option>
+            <option value="passed">Passed</option>
+          </select>
+        </div>
+        <div class="form-row full">
+          <label for="tour-date">Tour date & time</label>
+          <input type="datetime-local" id="tour-date">
+        </div>
+        <div class="form-row full">
+          <label>Ranking</label>
+          <div class="stars" id="stars-input">
+            <span class="star" data-value="1">★</span>
+            <span class="star" data-value="2">★</span>
+            <span class="star" data-value="3">★</span>
+            <span class="star" data-value="4">★</span>
+            <span class="star" data-value="5">★</span>
+            <button type="button" class="btn-clear-stars" onclick="setRating(0)">Unranked</button>
+          </div>
+          <input type="hidden" id="rating" value="0">
+        </div>
+        <div class="form-row full">
+          <label>Photo</label>
+          <div class="photo-row">
+            <div id="photo-preview" class="photo-preview">No photo</div>
+            <div class="photo-actions">
+              <input type="file" id="photo-file" accept="image/*" style="display:none" onchange="handlePhotoFile(event)">
+              <button type="button" class="btn btn-secondary" onclick="document.getElementById('photo-file').click()">Upload photo…</button>
+              <button type="button" class="btn btn-secondary" id="photo-remove" onclick="clearPhoto()" style="display:none">Remove photo</button>
+            </div>
+          </div>
+          <input type="hidden" id="photo">
+        </div>
+        <div class="form-row">
+          <label for="pros">Pros</label>
+          <textarea id="pros" placeholder="Big windows, near park..."></textarea>
+        </div>
+        <div class="form-row">
+          <label for="cons">Cons</label>
+          <textarea id="cons" placeholder="No laundry, 5th floor walkup..."></textarea>
+        </div>
+        <div class="form-row full">
+          <label for="notes">Notes</label>
+          <textarea id="notes" placeholder="Tour scheduled Tuesday 3pm. Landlord email: ..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger" id="delete-btn" onclick="deleteApt()" style="display:none; margin-right:auto">Delete</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="bookmarklet-backdrop">
+  <div class="modal">
+    <h2>Bookmarklet: save listings with one click</h2>
+    <p style="color: var(--muted); font-size: 14px; margin-top: 0;">For sites that block the URL fetcher (like Zillow or Redfin), use this instead.</p>
+    <div class="instructions">
+      <ol>
+        <li>
+          <strong>Show your bookmarks bar</strong> if it's hidden: <kbd>⌘⇧B</kbd> in Chrome, Edge, Arc, or Safari.
+        </li>
+        <li>
+          <strong>Drag this button to your bookmarks bar:</strong><br>
+          <a class="bookmarklet-link" id="bookmarklet-link" href="javascript:void(0)" onclick="return false; ">📌 Save to Tracker</a>
+        </li>
+        <li>
+          While viewing any apartment listing page, <strong>click the bookmark</strong>. The listing details get copied to your clipboard.
+        </li>
+        <li>
+          Come back to this tracker, click <strong>+ Add Apartment</strong>, and <strong>paste into the auto-fill box</strong>. The fields will populate automatically.
+        </li>
+      </ol>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" onclick="closeBookmarkletModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'apartment-tracker-v1';
+  const STATUSES = ['saved', 'messaged', 'replied', 'tour-scheduled', 'toured', 'applied', 'accepted', 'rejected', 'passed'];
+  const STATUS_LABELS = {
+    saved: 'Saved', messaged: 'Messaged', replied: 'Replied',
+    'tour-scheduled': 'Tour Scheduled', toured: 'Toured',
+    applied: 'Applied', accepted: 'Accepted', rejected: 'Rejected', passed: 'Passed'
+  };
+
+  let apartments = load();
+  let fileHandle = null;
+  const supportsFSA = 'showSaveFilePicker' in window;
+
+  function load() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    } catch { return []; }
+  }
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(apartments));
+    } catch (e) {
+      if (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014) {
+        alert('Browser storage is full — usually from photos. Use "Save backup" to export a JSON file, then remove some photos to free space, or link an auto-save file.');
+      } else {
+        alert('Could not save: ' + e.message);
+      }
+      return;
+    }
+    writeToLinkedFile();
+    renderSaveStatus();
+  }
+
+  // ---- IndexedDB: persist file handle across sessions ----
+  function openDB() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('apt-tracker', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('handles');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  }
+  async function idbPut(key, val) {
+    const db = await openDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').put(val, key);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  }
+  async function idbGet(key) {
+    const db = await openDB();
+    return new Promise((res) => {
+      const tx = db.transaction('handles', 'readonly');
+      const req = tx.objectStore('handles').get(key);
+      req.onsuccess = () => res(req.result || null);
+      req.onerror = () => res(null);
+    });
+  }
+  async function idbDel(key) {
+    const db = await openDB();
+    return new Promise((res) => {
+      const tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').delete(key);
+      tx.oncomplete = () => res();
+    });
+  }
+
+  // ---- File auto-save (Chrome/Edge/Arc) ----
+  async function linkFile() {
+    if (!supportsFSA) return;
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: `apartments.json`,
+        types: [{ description: 'JSON backup', accept: { 'application/json': ['.json'] } }]
+      });
+      fileHandle = handle;
+      await idbPut('file', handle);
+      const ok = await writeToLinkedFile(true);
+      if (ok) markSaved();
+      renderSaveStatus();
+    } catch (e) {
+      if (e.name !== 'AbortError') alert('Could not link file: ' + e.message);
+    }
+  }
+
+  async function unlinkFile() {
+    fileHandle = null;
+    await idbDel('file');
+    renderSaveStatus();
+  }
+
+  async function writeToLinkedFile(force) {
+    if (!fileHandle) return false;
+    try {
+      const perm = await fileHandle.queryPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') {
+        if (!force) return false; // don't prompt silently on every change
+        const req = await fileHandle.requestPermission({ mode: 'readwrite' });
+        if (req !== 'granted') return false;
+      }
+      const writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify(apartments, null, 2));
+      await writable.close();
+      markSaved();
+      return true;
+    } catch (e) {
+      console.warn('Auto-save failed:', e);
+      return false;
+    }
+  }
+
+  async function tryRestoreHandle() {
+    if (!supportsFSA) return;
+    const handle = await idbGet('file');
+    if (handle) fileHandle = handle;
+    renderSaveStatus();
+  }
+
+  async function pullFromFile() {
+    if (!fileHandle) return;
+    try {
+      const perm = await fileHandle.queryPermission({ mode: 'read' });
+      if (perm !== 'granted') {
+        const req = await fileHandle.requestPermission({ mode: 'read' });
+        if (req !== 'granted') {
+          alert('Permission to read the file was denied.');
+          return;
+        }
+      }
+      const file = await fileHandle.getFile();
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!Array.isArray(data)) throw new Error('file does not contain an array');
+
+      if (apartments.length > 0 &&
+          !confirm(`Replace your current ${apartments.length} entries with what's in the file? (${data.length} found in the file.)`)) {
+        return;
+      }
+      apartments = data;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(apartments));
+      markSaved();
+      render();
+      renderSaveStatus();
+    } catch (e) {
+      alert('Could not pull from file: ' + e.message);
+    }
+  }
+
+  // ---- Dirty tracking ----
+  function markSaved() {
+    localStorage.setItem('lastSavedAt', new Date().toISOString());
+  }
+  function isDirty() {
+    if (apartments.length === 0) return false;
+    const lastSaved = localStorage.getItem('lastSavedAt');
+    if (!lastSaved) return true;
+    const maxUpdated = apartments.reduce((m, a) => a.updatedAt > m ? a.updatedAt : m, '');
+    return maxUpdated > lastSaved;
+  }
+  function unsavedCount() {
+    const lastSaved = localStorage.getItem('lastSavedAt') || '';
+    return apartments.filter(a => (a.updatedAt || '') > lastSaved).length;
+  }
+
+  function renderSaveStatus() {
+    const el = document.getElementById('save-status');
+    const banner = document.getElementById('banner');
+    const bannerText = document.getElementById('banner-text');
+    const linkBtn = document.getElementById('link-btn');
+
+    if (supportsFSA) {
+      linkBtn.style.display = 'inline-block';
+      linkBtn.textContent = fileHandle ? 'Change auto-save file…' : 'Auto-save to file…';
+    }
+    document.getElementById('pull-btn').style.display = fileHandle ? 'inline-block' : 'none';
+
+    if (fileHandle) {
+      const name = fileHandle.name || 'linked file';
+      el.className = 'save-status linked';
+      el.innerHTML = `<span class="dot"></span>Auto-saving to <strong>${escapeHtml(name)}</strong> &middot; <a onclick="unlinkFile()">unlink</a>`;
+      banner.style.display = 'none';
+      return;
+    }
+
+    if (apartments.length === 0) {
+      el.innerHTML = '';
+      banner.style.display = 'none';
+      return;
+    }
+
+    const dirty = isDirty();
+    const lastSaved = localStorage.getItem('lastSavedAt');
+    if (!dirty && lastSaved) {
+      el.className = 'save-status saved';
+      el.innerHTML = `<span class="dot"></span>Backup saved ${fmtDate(lastSaved)}`;
+      banner.style.display = 'none';
+    } else {
+      const n = unsavedCount();
+      el.className = 'save-status dirty';
+      el.innerHTML = `<span class="dot"></span>${n} unsaved change${n === 1 ? '' : 's'} since last backup`;
+      // Show prominent banner once user has 3+ unsaved changes, or never saved
+      if (n >= 3 || !lastSaved) {
+        bannerText.textContent = lastSaved
+          ? `You have ${n} unsaved change${n === 1 ? '' : 's'}. Click "Save backup" to download a JSON file.`
+          : `Your data is stored only in this browser. Save a backup file so it's not lost.`;
+        banner.style.display = 'flex';
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+  }
+
+  // Warn before closing tab if there are unsaved changes and no linked file
+  window.addEventListener('beforeunload', (e) => {
+    if (!fileHandle && isDirty()) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  // ---- Rating (stars) ----
+  function setRating(n) {
+    n = Math.max(0, Math.min(5, Number(n) || 0));
+    document.getElementById('rating').value = n;
+    document.querySelectorAll('#stars-input .star').forEach(s => {
+      s.classList.toggle('filled', Number(s.dataset.value) <= n);
+    });
+  }
+  // Wire star clicks + hover preview (once at load)
+  (function() {
+    const container = document.getElementById('stars-input');
+    if (!container) return;
+    const stars = container.querySelectorAll('.star');
+    stars.forEach(s => {
+      s.addEventListener('mouseenter', () => {
+        const val = Number(s.dataset.value);
+        stars.forEach(st => st.classList.toggle('filled', Number(st.dataset.value) <= val));
+      });
+      s.addEventListener('click', () => {
+        const val = Number(s.dataset.value);
+        const current = Number(document.getElementById('rating').value);
+        // Clicking the currently-set star clears the rating
+        setRating(current === val ? 0 : val);
+      });
+    });
+    container.addEventListener('mouseleave', () => {
+      setRating(document.getElementById('rating').value);
+    });
+  })();
+
+  // ---- Photo handling ----
+  async function handlePhotoFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please choose an image file.');
+      event.target.value = '';
+      return;
+    }
+    try {
+      const dataUrl = await compressImage(file);
+      setPhoto(dataUrl);
+    } catch (e) {
+      alert('Could not load image: ' + e.message);
+    }
+    event.target.value = '';
+  }
+
+  async function compressImage(file, maxDim = 1000, quality = 0.75) {
+    const objUrl = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((res, rej) => {
+        const i = new Image();
+        i.onload = () => res(i);
+        i.onerror = () => rej(new Error('could not decode image'));
+        i.src = objUrl;
+      });
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      return canvas.toDataURL('image/jpeg', quality);
+    } finally {
+      URL.revokeObjectURL(objUrl);
+    }
+  }
+
+  function setPhoto(url) {
+    document.getElementById('photo').value = url;
+    const preview = document.getElementById('photo-preview');
+    preview.classList.add('has-photo');
+    preview.style.backgroundImage = `url("${url.replace(/"/g, '\\"')}")`;
+    document.getElementById('photo-remove').style.display = 'inline-block';
+  }
+
+  function clearPhoto() {
+    document.getElementById('photo').value = '';
+    const preview = document.getElementById('photo-preview');
+    preview.classList.remove('has-photo');
+    preview.style.backgroundImage = '';
+    document.getElementById('photo-remove').style.display = 'none';
+  }
+
+  // ---- Auto-fill from listing URL ----
+  const CORS_PROXY = 'https://api.allorigins.win/get?url=';
+
+  async function autoFillFromUrl() {
+    const input = document.getElementById('paste-url');
+    const raw = input.value.trim();
+    const status = document.getElementById('autofill-status');
+    if (!raw) return;
+
+    // Bookmarklet payload: "#APT#{json}"
+    if (raw.indexOf('#APT#') !== -1) {
+      try {
+        const jsonStr = raw.slice(raw.indexOf('#APT#') + 5);
+        const data = JSON.parse(jsonStr);
+        applyExtractedData(data);
+        status.className = 'autofill-status success';
+        status.textContent = '✓ Filled from bookmarklet. Review the fields below.';
+        input.value = '';
+        return;
+      } catch (e) {
+        status.className = 'autofill-status error';
+        status.textContent = 'Could not parse bookmarklet data: ' + e.message;
+        return;
+      }
+    }
+
+    let parsedUrl;
+    try { parsedUrl = new URL(raw); }
+    catch {
+      status.className = 'autofill-status error';
+      status.textContent = 'That doesn’t look like a valid URL.';
+      return;
+    }
+
+    status.className = 'autofill-status loading';
+    status.textContent = `Fetching from ${parsedUrl.hostname}…`;
+
+    try {
+      const proxyUrl = CORS_PROXY + encodeURIComponent(raw);
+      const ctl = new AbortController();
+      const timeoutId = setTimeout(() => ctl.abort(), 12000);
+      const res = await fetch(proxyUrl, { signal: ctl.signal });
+      clearTimeout(timeoutId);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const json = await res.json();
+      if (!json.contents) throw new Error('empty response');
+      const result = parseListing(json.contents, raw);
+      applyExtractedData(result);
+
+      if (result._fields.length === 0) {
+        status.className = 'autofill-status warn';
+        status.innerHTML = 'Page fetched but no structured info found. URL saved. <a onclick="openBookmarkletModal()">Try the bookmarklet →</a>';
+      } else {
+        status.className = 'autofill-status success';
+        status.textContent = `✓ Filled: ${result._fields.join(', ')}. Review the fields below.`;
+      }
+      input.value = '';
+    } catch (e) {
+      document.getElementById('url').value = raw;
+      const msg = e.name === 'AbortError' ? 'timed out' : e.message;
+      status.className = 'autofill-status warn';
+      status.innerHTML = `Couldn’t fetch (${msg}). URL saved — fill the rest manually, or <a onclick="openBookmarkletModal()">try the bookmarklet →</a>`;
+    }
+  }
+
+  function parseListing(html, sourceUrl) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const meta = (n) => {
+      const el = doc.querySelector(`meta[property="${n}"], meta[name="${n}"]`);
+      return el ? el.getAttribute('content') : '';
+    };
+    const result = {
+      url: sourceUrl,
+      source: new URL(sourceUrl).hostname.replace(/^www\./, ''),
+      address: '', rent: null, beds: '', sqft: null, notes: '',
+      photo: meta('og:image') || ''
+    };
+    const title = meta('og:title') || doc.title || '';
+    const desc = meta('og:description') || meta('description') || '';
+
+    doc.querySelectorAll('script[type="application/ld+json"]').forEach(s => {
+      try {
+        const data = JSON.parse(s.textContent);
+        const items = Array.isArray(data) ? data : [data];
+        items.forEach(item => {
+          if (!item || typeof item !== 'object') return;
+          let t = item['@type'] || '';
+          if (Array.isArray(t)) t = t.join(' ');
+          if (!/Product|Apartment|Residence|Place|Accommodation|RealEstate/i.test(t)
+              && !item.address && !item.offers) return;
+          if (item.name && !result.address) result.address = item.name;
+          if (item.address) {
+            const a = item.address;
+            if (typeof a === 'string') result.address = a;
+            else if (a.streetAddress) {
+              result.address = [a.streetAddress, a.addressLocality, a.addressRegion].filter(Boolean).join(', ');
+            }
+          }
+          const price = (item.offers && item.offers.price) || item.price;
+          if (price && !result.rent) result.rent = Number(String(price).replace(/[^\d.]/g, ''));
+          if (item.numberOfBedrooms && !result.beds) {
+            result.beds = item.numberOfBedrooms + 'BR' + (item.numberOfBathroomsTotal ? ' / ' + item.numberOfBathroomsTotal + 'BA' : '');
+          }
+          if (item.floorSize && item.floorSize.value && !result.sqft) result.sqft = Number(item.floorSize.value);
+        });
+      } catch {}
+    });
+
+    const text = title + ' ' + desc;
+    if (!result.rent) {
+      const m = text.match(/\$\s*([\d,]+)/);
+      if (m) result.rent = Number(m[1].replace(/,/g, ''));
+    }
+    if (!result.beds) {
+      const bm = text.match(/(\d+(?:\.\d+)?)\s*(?:bed|br|bedroom)/i);
+      const bam = text.match(/(\d+(?:\.\d+)?)\s*(?:bath|ba|bathroom)/i);
+      if (bm || bam) result.beds = (bm ? bm[1] + 'BR' : '') + (bm && bam ? ' / ' : '') + (bam ? bam[1] + 'BA' : '');
+    }
+    if (!result.sqft) {
+      const sm = text.match(/(\d{3,5})\s*sq[\.\s]*ft/i);
+      if (sm) result.sqft = Number(sm[1]);
+    }
+    if (!result.address) {
+      const clean = title.split(/[\|–—]/)[0].trim();
+      if (clean) result.address = clean;
+    }
+    if (desc) result.notes = desc;
+
+    result._fields = [];
+    ['address', 'rent', 'beds', 'sqft'].forEach(k => {
+      if (result[k]) result._fields.push(k);
+    });
+    return result;
+  }
+
+  function applyExtractedData(d) {
+    const setIfEmpty = (id, val) => {
+      const el = document.getElementById(id);
+      if (val && !el.value) el.value = val;
+    };
+    if (d.url) document.getElementById('url').value = d.url;
+    setIfEmpty('address', d.address);
+    setIfEmpty('rent', d.rent);
+    setIfEmpty('beds', d.beds);
+    setIfEmpty('sqft', d.sqft);
+    setIfEmpty('source', d.source);
+    if (d.notes && !document.getElementById('notes').value) {
+      document.getElementById('notes').value = d.notes;
+    }
+    if (d.photo && !document.getElementById('photo').value) {
+      setPhoto(d.photo);
+    }
+  }
+
+  function openBookmarkletModal() {
+    document.getElementById('bookmarklet-backdrop').classList.add('open');
+  }
+  function closeBookmarkletModal() {
+    document.getElementById('bookmarklet-backdrop').classList.remove('open');
+  }
+  document.getElementById('bookmarklet-backdrop').addEventListener('click', (e) => {
+    if (e.target.id === 'bookmarklet-backdrop') closeBookmarkletModal();
+  });
+
+  // ---- Bookmarklet source ----
+  // This function runs in the context of the listing page when the user clicks
+  // the bookmarklet. It must be fully self-contained.
+  function bookmarkletFn() {
+    function meta(name) {
+      var el = document.querySelector('meta[property="' + name + '"], meta[name="' + name + '"]');
+      return el ? el.getAttribute('content') : '';
+    }
+    var result = {
+      url: location.href,
+      source: location.hostname.replace(/^www\./, ''),
+      address: '', rent: null, beds: '', sqft: null, notes: '',
+      photo: meta('og:image') || ''
+    };
+    var title = meta('og:title') || document.title || '';
+    var desc = meta('og:description') || meta('description') || '';
+
+    var scripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for (var i = 0; i < scripts.length; i++) {
+      try {
+        var data = JSON.parse(scripts[i].textContent);
+        var items = Array.isArray(data) ? data : [data];
+        for (var j = 0; j < items.length; j++) {
+          var item = items[j];
+          if (!item || typeof item !== 'object') continue;
+          var t = item['@type'] || '';
+          if (Array.isArray(t)) t = t.join(' ');
+          if (!/Product|Apartment|Residence|Place|Accommodation|RealEstate/i.test(t)
+              && !item.address && !item.offers) continue;
+          if (item.name && !result.address) result.address = item.name;
+          if (item.address) {
+            var a = item.address;
+            if (typeof a === 'string') result.address = a;
+            else if (a.streetAddress) {
+              result.address = [a.streetAddress, a.addressLocality, a.addressRegion].filter(Boolean).join(', ');
+            }
+          }
+          var price = (item.offers && item.offers.price) || item.price;
+          if (price && !result.rent) result.rent = Number(String(price).replace(/[^\d.]/g, ''));
+          if (item.numberOfBedrooms && !result.beds) {
+            result.beds = item.numberOfBedrooms + 'BR' + (item.numberOfBathroomsTotal ? ' / ' + item.numberOfBathroomsTotal + 'BA' : '');
+          }
+          if (item.floorSize && item.floorSize.value && !result.sqft) result.sqft = Number(item.floorSize.value);
+        }
+      } catch (e) {}
+    }
+    var text = title + ' ' + desc;
+    if (!result.rent) {
+      var m = text.match(/\$\s*([\d,]+)/);
+      if (m) result.rent = Number(m[1].replace(/,/g, ''));
+    }
+    if (!result.beds) {
+      var bm = text.match(/(\d+(?:\.\d+)?)\s*(?:bed|br|bedroom)/i);
+      var bam = text.match(/(\d+(?:\.\d+)?)\s*(?:bath|ba|bathroom)/i);
+      if (bm || bam) result.beds = (bm ? bm[1] + 'BR' : '') + (bm && bam ? ' / ' : '') + (bam ? bam[1] + 'BA' : '');
+    }
+    if (!result.sqft) {
+      var sm = text.match(/(\d{3,5})\s*sq[\.\s]*ft/i);
+      if (sm) result.sqft = Number(sm[1]);
+    }
+    if (!result.address) {
+      var clean = title.split(/[\|–—]/)[0].trim();
+      if (clean) result.address = clean;
+    }
+    if (desc) result.notes = desc;
+
+    var payload = '#APT#' + JSON.stringify(result);
+    var summary = (result.address || '(no address found)') + (result.rent ? ' — $' + result.rent + '/mo' : '');
+    var msg = 'Apartment Tracker: copied!\n\n' + summary + '\n\nGo to your tracker, click "+ Add Apartment", and paste into the auto-fill box.';
+
+    function fallbackCopy() {
+      var ta = document.createElement('textarea');
+      ta.value = payload;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      alert(msg);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload).then(function() { alert(msg); }, fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+  }
+
+  // Wire up bookmarklet href
+  (function() {
+    const link = document.getElementById('bookmarklet-link');
+    if (link) {
+      const src = '(' + bookmarkletFn.toString() + ')();';
+      link.href = 'javascript:' + encodeURIComponent(src);
+    }
+  })();
+
+  function openModal(id) {
+    const form = document.getElementById('apt-form');
+    form.reset();
+    document.getElementById('apt-id').value = '';
+    document.getElementById('delete-btn').style.display = 'none';
+    document.getElementById('modal-title').textContent = 'Add Apartment';
+    // Reset auto-fill area
+    const afStatus = document.getElementById('autofill-status');
+    afStatus.className = 'autofill-status';
+    afStatus.innerHTML = 'Or <a onclick="openBookmarkletModal()">use a bookmarklet</a> for sites that block the fetcher.';
+    document.getElementById('paste-url').value = '';
+    clearPhoto();
+    setRating(0);
+    document.getElementById('tour-date').value = '';
+
+    if (id) {
+      const apt = apartments.find(a => a.id === id);
+      if (apt) {
+        document.getElementById('modal-title').textContent = 'Edit Apartment';
+        document.getElementById('apt-id').value = apt.id;
+        document.getElementById('address').value = apt.address || '';
+        document.getElementById('rent').value = apt.rent || '';
+        document.getElementById('beds').value = apt.beds || '';
+        document.getElementById('sqft').value = apt.sqft || '';
+        document.getElementById('source').value = apt.source || '';
+        document.getElementById('url').value = apt.url || '';
+        document.getElementById('status').value = apt.status || 'saved';
+        document.getElementById('pros').value = apt.pros || '';
+        document.getElementById('cons').value = apt.cons || '';
+        document.getElementById('notes').value = apt.notes || '';
+        if (apt.photo) setPhoto(apt.photo);
+        setRating(apt.rating || 0);
+        document.getElementById('tour-date').value = apt.tourDate || '';
+        document.getElementById('delete-btn').style.display = 'inline-block';
+      }
+    }
+    document.getElementById('modal-backdrop').classList.add('open');
+    setTimeout(() => document.getElementById('address').focus(), 50);
+  }
+
+  function closeModal() {
+    document.getElementById('modal-backdrop').classList.remove('open');
+  }
+
+  function saveApt(e) {
+    e.preventDefault();
+    const id = document.getElementById('apt-id').value || crypto.randomUUID();
+    const existing = apartments.find(a => a.id === id);
+    const now = new Date().toISOString();
+    const newStatus = document.getElementById('status').value;
+
+    const apt = {
+      id,
+      address: document.getElementById('address').value.trim(),
+      rent: document.getElementById('rent').value ? Number(document.getElementById('rent').value) : null,
+      beds: document.getElementById('beds').value.trim(),
+      sqft: document.getElementById('sqft').value ? Number(document.getElementById('sqft').value) : null,
+      source: document.getElementById('source').value.trim(),
+      url: document.getElementById('url').value.trim(),
+      status: newStatus,
+      pros: document.getElementById('pros').value.trim(),
+      cons: document.getElementById('cons').value.trim(),
+      notes: document.getElementById('notes').value.trim(),
+      photo: document.getElementById('photo').value,
+      rating: Number(document.getElementById('rating').value) || 0,
+      tourDate: document.getElementById('tour-date').value || '',
+      addedAt: existing ? existing.addedAt : now,
+      updatedAt: now,
+      statusHistory: existing ? existing.statusHistory : []
+    };
+
+    if (!existing || existing.status !== newStatus) {
+      apt.statusHistory = [...(apt.statusHistory || []), { status: newStatus, at: now }];
+    }
+
+    if (existing) {
+      apartments = apartments.map(a => a.id === id ? apt : a);
+    } else {
+      apartments.push(apt);
+    }
+    save();
+    closeModal();
+    render();
+  }
+
+  function deleteApt() {
+    const id = document.getElementById('apt-id').value;
+    if (!id) return;
+    if (!confirm('Delete this apartment? This cannot be undone.')) return;
+    apartments = apartments.filter(a => a.id !== id);
+    save();
+    closeModal();
+    render();
+  }
+
+  function updateStatus(id, status) {
+    const apt = apartments.find(a => a.id === id);
+    if (!apt || apt.status === status) return;
+    const now = new Date().toISOString();
+    apt.status = status;
+    apt.updatedAt = now;
+    apt.statusHistory = [...(apt.statusHistory || []), { status, at: now }];
+    save();
+    render();
+  }
+
+  function fmtTour(s) {
+    if (!s) return '';
+    const d = new Date(s);
+    if (isNaN(d)) return s;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    const dDay = new Date(d); dDay.setHours(0,0,0,0);
+    let dayStr;
+    if (dDay.getTime() === today.getTime()) dayStr = 'Today';
+    else if (dDay.getTime() === tomorrow.getTime()) dayStr = 'Tomorrow';
+    else dayStr = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    const timeStr = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    return `${dayStr} · ${timeStr}`;
+  }
+
+  function renderAppointments() {
+    const section = document.getElementById('appointments');
+    const list = document.getElementById('appointments-list');
+    const cutoff = new Date(); cutoff.setHours(0,0,0,0);
+
+    const upcoming = apartments
+      .filter(a => a.tourDate && new Date(a.tourDate) >= cutoff)
+      .sort((a, b) => a.tourDate.localeCompare(b.tourDate));
+
+    if (upcoming.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = 'block';
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    list.innerHTML = upcoming.map(a => {
+      const d = new Date(a.tourDate);
+      const dDay = new Date(d); dDay.setHours(0,0,0,0);
+      const isToday = dDay.getTime() === today.getTime();
+      return `
+        <div class="appointment-chip ${isToday ? 'today' : ''}" onclick="openModal('${a.id}')">
+          <div class="appointment-when">${escapeHtml(fmtTour(a.tourDate))}</div>
+          <div class="appointment-where">${escapeHtml(a.address)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const now = new Date();
+    const diff = (now - d) / (1000 * 60 * 60 * 24);
+    if (diff < 1) return 'today';
+    if (diff < 2) return 'yesterday';
+    if (diff < 7) return `${Math.floor(diff)}d ago`;
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  function escapeHtml(s) {
+    return (s || '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function render() {
+    renderAppointments();
+    const grid = document.getElementById('grid');
+    const search = document.getElementById('search').value.toLowerCase().trim();
+    const filterStatus = document.getElementById('filter-status').value;
+    const sort = document.getElementById('sort').value;
+
+    let list = apartments.slice();
+
+    if (search) {
+      list = list.filter(a => {
+        const blob = [a.address, a.beds, a.source, a.pros, a.cons, a.notes, a.url].join(' ').toLowerCase();
+        return blob.includes(search);
+      });
+    }
+    if (filterStatus) {
+      list = list.filter(a => a.status === filterStatus);
+    }
+
+    list.sort((a, b) => {
+      switch (sort) {
+        case 'rating-desc': {
+          const diff = (b.rating || 0) - (a.rating || 0);
+          return diff !== 0 ? diff : (b.updatedAt || '').localeCompare(a.updatedAt || '');
+        }
+        case 'updated-desc': return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+        case 'added-desc':   return (b.addedAt || '').localeCompare(a.addedAt || '');
+        case 'added-asc':    return (a.addedAt || '').localeCompare(b.addedAt || '');
+        case 'rent-asc':     return (a.rent || Infinity) - (b.rent || Infinity);
+        case 'rent-desc':    return (b.rent || -1) - (a.rent || -1);
+        case 'address':      return (a.address || '').localeCompare(b.address || '');
+      }
+    });
+
+    // stats
+    const counts = {};
+    apartments.forEach(a => { counts[a.status] = (counts[a.status] || 0) + 1; });
+    const total = apartments.length;
+    const summary = [
+      `${total} apartment${total === 1 ? '' : 's'}`,
+      counts.toured ? `${counts.toured} toured` : '',
+      counts.applied ? `${counts.applied} applied` : '',
+      counts.accepted ? `${counts.accepted} accepted` : ''
+    ].filter(Boolean).join(' • ');
+    document.getElementById('stats').textContent = summary;
+
+    if (list.length === 0) {
+      grid.innerHTML = total === 0
+        ? `<div class="empty" style="grid-column:1/-1">
+             <h2>No apartments yet</h2>
+             <p>Click <strong>+ Add Apartment</strong> to start tracking.</p>
+           </div>`
+        : `<div class="empty" style="grid-column:1/-1">
+             <h2>No matches</h2>
+             <p>Try clearing your search or filter.</p>
+           </div>`;
+      return;
+    }
+
+    grid.innerHTML = list.map(a => {
+      const title = a.url
+        ? `<a href="${escapeHtml(a.url)}" target="_blank" rel="noopener">${escapeHtml(a.address)} ↗</a>`
+        : escapeHtml(a.address);
+      const chips = [
+        a.beds ? `<span class="chip">${escapeHtml(a.beds)}</span>` : '',
+        a.sqft ? `<span class="chip">${a.sqft} sqft</span>` : '',
+        a.source ? `<span class="chip">${escapeHtml(a.source)}</span>` : ''
+      ].filter(Boolean).join('');
+
+      const pipeline = STATUSES.map(s =>
+        `<button class="${a.status === s ? 'active' : ''}" onclick="updateStatus('${a.id}', '${s}')">${STATUS_LABELS[s]}</button>`
+      ).join('');
+
+      const prosCons = (a.pros || a.cons) ? `
+        <div class="pros-cons">
+          <div class="pros"><div class="label">Pros</div>${escapeHtml(a.pros) || '—'}</div>
+          <div class="cons"><div class="label">Cons</div>${escapeHtml(a.cons) || '—'}</div>
+        </div>` : '';
+
+      const notes = a.notes ? `<div class="notes">${escapeHtml(a.notes)}</div>` : '';
+
+      const photo = a.photo
+        ? `<div class="card-photo" style='background-image: url("${escapeHtml(a.photo)}")'></div>`
+        : '';
+      const stars = a.rating
+        ? `<div class="card-stars" title="${a.rating} of 5">${'★'.repeat(a.rating)}<span style="color:var(--border)">${'★'.repeat(5 - a.rating)}</span></div>`
+        : '';
+      const tourBadge = (() => {
+        if (!a.tourDate) return '';
+        const cutoff = new Date(); cutoff.setHours(0,0,0,0);
+        const past = new Date(a.tourDate) < cutoff;
+        const prefix = past ? 'Toured ' : 'Tour: ';
+        const style = past ? ' style="background:var(--bg);color:var(--muted)"' : '';
+        return `<div class="card-tour-date"${style}>📅 ${prefix}${escapeHtml(fmtTour(a.tourDate))}</div>`;
+      })();
+
+      return `
+        <div class="card">
+          ${photo}
+          <div class="card-header">
+            <h3 class="card-title">${title}</h3>
+            <span class="status-badge status-${a.status}">${STATUS_LABELS[a.status]}</span>
+          </div>
+          ${stars}
+          ${tourBadge}
+          ${a.rent ? `<div class="rent">$${a.rent.toLocaleString()}/mo</div>` : ''}
+          <div class="chips">${chips}</div>
+          ${prosCons}
+          ${notes}
+          <div class="status-pipeline">${pipeline}</div>
+          <div class="card-footer">
+            <span class="meta">Updated ${fmtDate(a.updatedAt)}</span>
+            <div class="card-actions">
+              <button class="icon-btn" onclick="openModal('${a.id}')">Edit</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function exportData() {
+    const blob = new Blob([JSON.stringify(apartments, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `apartments-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    markSaved();
+    renderSaveStatus();
+  }
+
+  function importData(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = JSON.parse(evt.target.result);
+        if (!Array.isArray(data)) throw new Error('Not an array');
+        if (apartments.length > 0 && !confirm(`Replace ${apartments.length} existing entries with ${data.length} from file?`)) return;
+        apartments = data;
+        save();
+        render();
+      } catch (err) {
+        alert('Could not import file: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  // Close modal on backdrop click or Escape
+  document.getElementById('modal-backdrop').addEventListener('click', (e) => {
+    if (e.target.id === 'modal-backdrop') closeModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  // Auto-fetch when user pastes into the auto-fill box
+  document.getElementById('paste-url').addEventListener('paste', () => {
+    setTimeout(() => autoFillFromUrl(), 50);
+  });
+
+  render();
+  renderSaveStatus();
+  tryRestoreHandle();
+</script>
+
+</body>
+</html>
