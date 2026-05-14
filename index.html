@@ -711,7 +711,7 @@
       <div class="save-status" id="save-status"></div>
     </div>
     <div class="toolbar">
-      <button class="btn-secondary btn" id="link-btn" onclick="linkFile()" style="display:none">Auto-save to file…</button>
+      <button class="btn-secondary btn" id="link-btn" onclick="openLinkModal()" style="display:none">Auto-save to file…</button>
       <button class="btn-secondary btn" id="pull-btn" onclick="pullFromFile()" style="display:none">⟳ Pull latest</button>
       <button class="btn-secondary btn" onclick="exportData()">Save backup</button>
       <button class="btn-secondary btn" onclick="document.getElementById('import-file').click()">Load backup</button>
@@ -871,6 +871,22 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="link-backdrop">
+  <div class="modal">
+    <h2>Link an auto-save file</h2>
+    <p style="color: var(--muted); font-size: 14px; margin-top: 0;">Every change you make will write to this file automatically. Pick the option that matches your situation:</p>
+    <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 16px;">
+      <button class="btn" onclick="linkFile('open')">Open an existing file</button>
+      <p style="font-size: 13px; color: var(--muted); margin: 4px 0 16px;">Use this if a partner already created the file in your shared folder, or you've used auto-save before and want to reconnect.</p>
+      <button class="btn btn-secondary" onclick="linkFile('save')">Create a new file</button>
+      <p style="font-size: 13px; color: var(--muted); margin: 4px 0 0;">First-time setup. You'll pick a location and filename (e.g., <code>shared-apartments.json</code> inside your shared Google Drive folder).</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeLinkModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="bookmarklet-backdrop">
   <div class="modal">
     <h2>Bookmarklet: save listings with one click</h2>
@@ -968,17 +984,57 @@
   }
 
   // ---- File auto-save (Chrome/Edge/Arc) ----
-  async function linkFile() {
+  function openLinkModal() {
+    if (!supportsFSA) return;
+    document.getElementById('link-backdrop').classList.add('open');
+  }
+  function closeLinkModal() {
+    document.getElementById('link-backdrop').classList.remove('open');
+  }
+  document.getElementById('link-backdrop').addEventListener('click', (e) => {
+    if (e.target.id === 'link-backdrop') closeLinkModal();
+  });
+
+  async function linkFile(mode) {
+    closeLinkModal();
     if (!supportsFSA) return;
     try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: `apartments.json`,
-        types: [{ description: 'JSON backup', accept: { 'application/json': ['.json'] } }]
-      });
+      let handle;
+      let didReadFile = false;
+      if (mode === 'open') {
+        const result = await window.showOpenFilePicker({
+          types: [{ description: 'JSON file', accept: { 'application/json': ['.json'] } }],
+          multiple: false
+        });
+        handle = result[0];
+        const file = await handle.getFile();
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (!Array.isArray(data)) throw new Error('file does not contain an array');
+
+        if (apartments.length > 0) {
+          if (!confirm(`This file has ${data.length} apartment${data.length === 1 ? '' : 's'}. Your tracker currently has ${apartments.length}. Replace yours with the file's contents?`)) {
+            return; // Don't link
+          }
+        }
+        apartments = data;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(apartments));
+        didReadFile = true;
+      } else {
+        handle = await window.showSaveFilePicker({
+          suggestedName: 'apartments.json',
+          types: [{ description: 'JSON backup', accept: { 'application/json': ['.json'] } }]
+        });
+      }
       fileHandle = handle;
       await idbPut('file', handle);
-      const ok = await writeToLinkedFile(true);
-      if (ok) markSaved();
+      if (!didReadFile) {
+        const ok = await writeToLinkedFile(true);
+        if (ok) markSaved();
+      } else {
+        markSaved();
+      }
+      render();
       renderSaveStatus();
     } catch (e) {
       if (e.name !== 'AbortError') alert('Could not link file: ' + e.message);
