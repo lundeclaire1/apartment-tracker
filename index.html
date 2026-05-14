@@ -380,9 +380,124 @@
     flex: 1;
   }
   .photo-actions .btn { width: fit-content; }
+  /* Funnel */
+  .funnel {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .funnel-pill {
+    border: none;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .funnel-pill:hover { opacity: 0.85; }
+  .funnel-pill:active { transform: scale(0.96); }
+  /* Onboarding */
+  .onboarding {
+    text-align: center;
+    padding: 40px 20px;
+    grid-column: 1 / -1;
+  }
+  .onboarding h2 {
+    font-size: 22px;
+    margin: 0 0 8px;
+    color: var(--text);
+  }
+  .onboarding .subtitle {
+    color: var(--muted);
+    margin-bottom: 28px;
+    font-size: 14px;
+  }
+  .onboarding-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .onboarding-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 20px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .onboarding-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .onboarding-card h3 {
+    margin: 0;
+    font-size: 16px;
+  }
+  .onboarding-card p {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0 0 12px;
+    flex: 1;
+    line-height: 1.45;
+  }
+  .onboarding-foot {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 28px auto 0;
+    max-width: 600px;
+    line-height: 1.6;
+  }
+  /* Mobile polish */
   @media (max-width: 600px) {
-    .form-grid { grid-template-columns: 1fr; }
-    header, main { padding-left: 16px; padding-right: 16px; }
+    header { padding: 14px 16px; }
+    main { padding: 16px 16px 80px; }
+    h1 { font-size: 18px; }
+    .header-row { gap: 10px; }
+    .toolbar { width: 100%; gap: 6px; }
+    .toolbar .btn { font-size: 13px; padding: 9px 12px; flex: 1 1 auto; min-width: 0; }
+    .filters { gap: 6px; }
+    .filters input[type="search"],
+    .filters select,
+    input, select, textarea { font-size: 16px; } /* prevent iOS zoom */
+    .grid { grid-template-columns: 1fr; gap: 12px; }
+    .modal-backdrop { padding: 16px; align-items: stretch; }
+    .modal { padding: 18px; max-height: calc(100vh - 32px); overflow-y: auto; }
+    .modal h2 { font-size: 17px; }
+    .form-grid { grid-template-columns: 1fr; gap: 10px; }
+    .photo-row { flex-direction: column; align-items: stretch; }
+    .photo-preview { width: 100%; height: 140px; }
+    .photo-actions .btn { width: 100%; }
+    .autofill-row { flex-direction: column; }
+    .appointments { padding: 12px 16px; }
+    .appointment-chip { min-width: 180px; padding: 8px 12px; }
+    .appointment-where { max-width: 200px; }
+    .stars { font-size: 30px; gap: 6px; }
+    .status-pipeline button { font-size: 12px; padding: 6px 10px; }
+    .card { padding: 14px; }
+    .card-photo { height: 200px; }
+    .card-actions .icon-btn { padding: 8px 12px; font-size: 14px; }
+    .pros-cons { grid-template-columns: 1fr; }
+    .modal-footer { flex-wrap: wrap; gap: 6px; }
+    .modal-footer .btn { flex: 1 1 auto; }
+    .banner { padding: 10px 16px; }
+    .banner-inner { flex-direction: column; gap: 8px; align-items: stretch; }
+    .onboarding { padding: 24px 8px; }
+    .onboarding-cards { grid-template-columns: 1fr; }
   }
   /* Save status */
   .save-status {
@@ -575,6 +690,7 @@
     <div>
       <h1>Apartment Tracker</h1>
       <div class="stats" id="stats">0 apartments</div>
+      <div class="funnel" id="funnel"></div>
       <div class="save-status" id="save-status"></div>
     </div>
     <div class="toolbar">
@@ -1495,6 +1611,33 @@
     }[c]));
   }
 
+  function renderFunnel(counts, total) {
+    const funnel = document.getElementById('funnel');
+    if (total === 0) { funnel.innerHTML = ''; return; }
+    funnel.innerHTML = STATUSES
+      .filter(s => counts[s])
+      .map(s => `<button class="funnel-pill status-${s}" onclick="filterByStatus('${s}')" title="Click to filter by ${STATUS_LABELS[s]}">${STATUS_LABELS[s]} · ${counts[s]}</button>`)
+      .join('');
+  }
+
+  function updateFilterCounts(counts, total) {
+    const sel = document.getElementById('filter-status');
+    sel.querySelectorAll('option').forEach(opt => {
+      if (!opt.value) {
+        opt.textContent = total ? `All statuses (${total})` : 'All statuses';
+      } else {
+        const n = counts[opt.value] || 0;
+        opt.textContent = n ? `${STATUS_LABELS[opt.value]} (${n})` : STATUS_LABELS[opt.value];
+      }
+    });
+  }
+
+  function filterByStatus(s) {
+    const sel = document.getElementById('filter-status');
+    sel.value = sel.value === s ? '' : s;
+    render();
+  }
+
   function render() {
     renderAppointments();
     const grid = document.getElementById('grid');
@@ -1533,19 +1676,38 @@
     const counts = {};
     apartments.forEach(a => { counts[a.status] = (counts[a.status] || 0) + 1; });
     const total = apartments.length;
-    const summary = [
-      `${total} apartment${total === 1 ? '' : 's'}`,
-      counts.toured ? `${counts.toured} toured` : '',
-      counts.applied ? `${counts.applied} applied` : '',
-      counts.accepted ? `${counts.accepted} accepted` : ''
-    ].filter(Boolean).join(' • ');
-    document.getElementById('stats').textContent = summary;
+    document.getElementById('stats').textContent = `${total} apartment${total === 1 ? '' : 's'}`;
+    renderFunnel(counts, total);
+    updateFilterCounts(counts, total);
 
     if (list.length === 0) {
       grid.innerHTML = total === 0
-        ? `<div class="empty" style="grid-column:1/-1">
-             <h2>No apartments yet</h2>
-             <p>Click <strong>+ Add Apartment</strong> to start tracking.</p>
+        ? `<div class="onboarding">
+             <h2>Welcome — let's find your next place</h2>
+             <p class="subtitle">Three ways to add your first apartment:</p>
+             <div class="onboarding-cards">
+               <div class="onboarding-card">
+                 <div class="onboarding-num">1</div>
+                 <h3>Paste a listing link</h3>
+                 <p>Click <strong>+ Add Apartment</strong> and paste a Zillow, StreetEasy, or Craigslist URL. Most details auto-fill.</p>
+                 <button class="btn" onclick="openModal()">+ Add Apartment</button>
+               </div>
+               <div class="onboarding-card">
+                 <div class="onboarding-num">2</div>
+                 <h3>One-click bookmarklet</h3>
+                 <p>Drag a button to your bookmarks bar. On any listing page, click it to grab the details — works on sites that block the URL fetcher.</p>
+                 <button class="btn btn-secondary" onclick="openBookmarkletModal()">Get the bookmarklet</button>
+               </div>
+               <div class="onboarding-card">
+                 <div class="onboarding-num">3</div>
+                 <h3>Type it in</h3>
+                 <p>Found something offline, by word of mouth, or from a broker? Add it manually with your own notes.</p>
+                 <button class="btn btn-secondary" onclick="openModal()">+ Add manually</button>
+               </div>
+             </div>
+             <p class="onboarding-foot">
+               Your data stays in your browser — never sent to a server. Rate apartments with stars, track tours with date and time, save photos, and share with a partner by linking a JSON file in a synced folder.
+             </p>
            </div>`
         : `<div class="empty" style="grid-column:1/-1">
              <h2>No matches</h2>
