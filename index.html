@@ -479,6 +479,30 @@
   }
   .site-footer a:hover { text-decoration: underline; }
   .site-footer .sep { margin: 0 6px; opacity: 0.5; }
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    background: none;
+    border: none;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    font-family: inherit;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
   /* Save toast */
   .toast {
     position: fixed;
@@ -765,6 +789,10 @@
 </section>
 
 <main>
+  <div class="tabs">
+    <button class="tab active" id="tab-active" onclick="setTab('active')">Active</button>
+    <button class="tab" id="tab-archived" onclick="setTab('archived')">Archived</button>
+  </div>
   <div class="filters">
     <input type="search" id="search" placeholder="Search by address, notes, anything..." oninput="render()">
     <select id="filter-status" onchange="render()">
@@ -956,6 +984,24 @@
   };
 
   let apartments = load();
+  let currentTab = 'active';
+
+  function setTab(t) {
+    currentTab = t;
+    document.getElementById('tab-active').classList.toggle('active', t === 'active');
+    document.getElementById('tab-archived').classList.toggle('active', t === 'archived');
+    render();
+  }
+
+  function toggleArchive(id) {
+    const apt = apartments.find(a => a.id === id);
+    if (!apt) return;
+    apt.archived = !apt.archived;
+    apt.updatedAt = new Date().toISOString();
+    save();
+    render();
+    showToast(apt.archived ? '✓ Archived' : '✓ Unarchived');
+  }
   let fileHandle = null;
   const supportsFSA = 'showSaveFilePicker' in window;
 
@@ -1695,7 +1741,7 @@
     const cutoff = new Date(); cutoff.setHours(0,0,0,0);
 
     const upcoming = apartments
-      .filter(a => a.tourDate && new Date(a.tourDate) >= cutoff)
+      .filter(a => !a.archived && a.tourDate && new Date(a.tourDate) >= cutoff)
       .sort((a, b) => a.tourDate.localeCompare(b.tourDate));
 
     if (upcoming.length === 0) {
@@ -1769,7 +1815,14 @@
     const filterStatus = document.getElementById('filter-status').value;
     const sort = document.getElementById('sort').value;
 
-    let list = apartments.slice();
+    const activeApts = apartments.filter(a => !a.archived);
+    const archivedApts = apartments.filter(a => a.archived);
+    const tabSet = currentTab === 'archived' ? archivedApts : activeApts;
+
+    document.getElementById('tab-active').textContent = `Active (${activeApts.length})`;
+    document.getElementById('tab-archived').textContent = `Archived (${archivedApts.length})`;
+
+    let list = tabSet.slice();
 
     if (search) {
       list = list.filter(a => {
@@ -1796,15 +1849,24 @@
       }
     });
 
-    // stats
+    // stats (reflect the current tab)
     const counts = {};
-    apartments.forEach(a => { counts[a.status] = (counts[a.status] || 0) + 1; });
-    const total = apartments.length;
-    document.getElementById('stats').textContent = `${total} apartment${total === 1 ? '' : 's'}`;
+    tabSet.forEach(a => { counts[a.status] = (counts[a.status] || 0) + 1; });
+    const total = tabSet.length;
+    document.getElementById('stats').textContent = currentTab === 'archived'
+      ? `${total} archived`
+      : `${total} apartment${total === 1 ? '' : 's'}`;
     renderFunnel(counts, total);
     updateFilterCounts(counts, total);
 
     if (list.length === 0) {
+      if (currentTab === 'archived') {
+        grid.innerHTML = `<div class="empty" style="grid-column:1/-1">
+             <h2>Nothing archived</h2>
+             <p>Use the <strong>Archive</strong> button on any card to move places you've ruled out here. They stay searchable but out of your main view.</p>
+           </div>`;
+        return;
+      }
       grid.innerHTML = total === 0
         ? `<div class="onboarding">
              <h2>Welcome — let's find your next place</h2>
@@ -1894,6 +1956,7 @@
           <div class="card-footer">
             <span class="meta">Updated ${fmtDate(a.updatedAt)}</span>
             <div class="card-actions">
+              <button class="icon-btn" onclick="toggleArchive('${a.id}')">${a.archived ? 'Unarchive' : 'Archive'}</button>
               <button class="icon-btn" onclick="openModal('${a.id}')">Edit</button>
             </div>
           </div>
