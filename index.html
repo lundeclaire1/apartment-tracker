@@ -479,6 +479,16 @@
   }
   .site-footer a:hover { text-decoration: underline; }
   .site-footer .sep { margin: 0 6px; opacity: 0.5; }
+  /* Pinned cards */
+  .card.pinned {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), var(--shadow);
+  }
+  .pin-indicator {
+    font-size: 13px;
+    flex-shrink: 0;
+    align-self: flex-start;
+  }
   /* Checklist editor (modal) */
   .todo-editor { display: flex; flex-direction: column; gap: 6px; }
   .todo-edit-row { display: flex; align-items: center; gap: 8px; }
@@ -1030,6 +1040,16 @@
     save();
     render();
     showToast(apt.archived ? '✓ Archived' : '✓ Unarchived');
+  }
+
+  function togglePin(id) {
+    const apt = apartments.find(a => a.id === id);
+    if (!apt) return;
+    apt.pinned = !apt.pinned;
+    apt.updatedAt = new Date().toISOString();
+    save();
+    render();
+    showToast(apt.pinned ? '📌 Pinned to top' : '✓ Unpinned');
   }
   let fileHandle = null;
   const supportsFSA = 'showSaveFilePicker' in window;
@@ -1758,6 +1778,7 @@
       tourDate: document.getElementById('tour-date').value || '',
       todos: collectTodosFromDOM().filter(t => t.text),
       archived: existing ? !!existing.archived : false,
+      pinned: existing ? !!existing.pinned : false,
       addedAt: existing ? existing.addedAt : now,
       updatedAt: now,
       statusHistory: existing ? existing.statusHistory : []
@@ -1927,6 +1948,9 @@
       }
     });
 
+    // Pinned apartments float to the top, keeping sort order within each group
+    list = [...list.filter(a => a.pinned), ...list.filter(a => !a.pinned)];
+
     // stats (reflect the current tab)
     const counts = {};
     tabSet.forEach(a => { counts[a.status] = (counts[a.status] || 0) + 1; });
@@ -2029,10 +2053,10 @@
       })();
 
       return `
-        <div class="card">
+        <div class="card${a.pinned ? ' pinned' : ''}">
           ${photo}
           <div class="card-header">
-            <h3 class="card-title">${title}</h3>
+            <h3 class="card-title">${a.pinned ? '<span class="pin-indicator" title="Pinned">📌</span> ' : ''}${title}</h3>
             <span class="status-badge status-${a.status}">${STATUS_LABELS[a.status]}</span>
           </div>
           ${stars}
@@ -2046,6 +2070,7 @@
           <div class="card-footer">
             <span class="meta">Updated ${fmtDate(a.updatedAt)}</span>
             <div class="card-actions">
+              <button class="icon-btn" onclick="togglePin('${a.id}')">${a.pinned ? 'Unpin' : 'Pin'}</button>
               <button class="icon-btn" onclick="toggleArchive('${a.id}')">${a.archived ? 'Unarchive' : 'Archive'}</button>
               <button class="icon-btn" onclick="openModal('${a.id}')">Edit</button>
             </div>
