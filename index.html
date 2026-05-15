@@ -479,6 +479,30 @@
   }
   .site-footer a:hover { text-decoration: underline; }
   .site-footer .sep { margin: 0 6px; opacity: 0.5; }
+  /* Checklist editor (modal) */
+  .todo-editor { display: flex; flex-direction: column; gap: 6px; }
+  .todo-edit-row { display: flex; align-items: center; gap: 8px; }
+  .todo-edit-row input[type="checkbox"] {
+    width: 16px; height: 16px; flex-shrink: 0; cursor: pointer;
+  }
+  .todo-edit-row input[type="text"] { flex: 1; }
+  .todo-del {
+    background: none; border: none; color: #8a1a1a; cursor: pointer;
+    font-size: 18px; line-height: 1; padding: 2px 8px;
+  }
+  .todo-del:hover { opacity: 0.7; }
+  /* Checklist on card */
+  .card-todos { margin: 4px 0 10px; }
+  .card-todos .todo-progress {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;
+  }
+  .card-todo {
+    display: flex; align-items: flex-start; gap: 7px; padding: 3px 0;
+    cursor: pointer; color: var(--text); font-size: 13px;
+  }
+  .card-todo input { margin-top: 2px; cursor: pointer; flex-shrink: 0; }
+  .card-todo.done span { text-decoration: line-through; color: var(--muted); }
   /* Tabs */
   .tabs {
     display: flex;
@@ -918,6 +942,11 @@
         <div class="form-row full">
           <label for="notes">Notes</label>
           <textarea id="notes" placeholder="Tour scheduled Tuesday 3pm. Landlord email: ..."></textarea>
+        </div>
+        <div class="form-row full">
+          <label>Checklist</label>
+          <div id="todo-editor" class="todo-editor"></div>
+          <button type="button" class="btn btn-secondary" onclick="addTodo()" style="margin-top: 8px; align-self: flex-start;">+ Add task</button>
         </div>
       </div>
       <div class="modal-footer">
@@ -1614,6 +1643,51 @@
     }
   })();
 
+  // ---- Per-apartment checklist ----
+  function collectTodosFromDOM() {
+    return Array.from(document.querySelectorAll('#todo-editor .todo-edit-row')).map(el => ({
+      id: el.dataset.id,
+      text: el.querySelector('.todo-text').value.trim(),
+      done: el.querySelector('.todo-check').checked
+    }));
+  }
+
+  function renderTodosList(todos) {
+    const ed = document.getElementById('todo-editor');
+    ed.innerHTML = (todos || []).map(t => `
+      <div class="todo-edit-row" data-id="${t.id || crypto.randomUUID()}">
+        <input type="checkbox" class="todo-check" ${t.done ? 'checked' : ''}>
+        <input type="text" class="todo-text" placeholder="e.g. Ask about parking, request floor plan…" value="${escapeHtml(t.text || '')}">
+        <button type="button" class="todo-del" onclick="removeTodo(this)" title="Remove task">×</button>
+      </div>
+    `).join('');
+  }
+
+  function addTodo() {
+    const current = collectTodosFromDOM();
+    current.push({ id: crypto.randomUUID(), text: '', done: false });
+    renderTodosList(current);
+    const rows = document.querySelectorAll('#todo-editor .todo-edit-row');
+    if (rows.length) rows[rows.length - 1].querySelector('.todo-text').focus();
+  }
+
+  function removeTodo(btn) {
+    const row = btn.closest('.todo-edit-row');
+    const id = row.dataset.id;
+    renderTodosList(collectTodosFromDOM().filter(t => t.id !== id));
+  }
+
+  function toggleTodo(aptId, todoId) {
+    const apt = apartments.find(a => a.id === aptId);
+    if (!apt || !apt.todos) return;
+    const t = apt.todos.find(x => x.id === todoId);
+    if (!t) return;
+    t.done = !t.done;
+    apt.updatedAt = new Date().toISOString();
+    save();
+    render();
+  }
+
   function openModal(id) {
     const form = document.getElementById('apt-form');
     form.reset();
@@ -1628,6 +1702,7 @@
     clearPhoto();
     setRating(0);
     document.getElementById('tour-date').value = '';
+    renderTodosList([]);
 
     if (id) {
       const apt = apartments.find(a => a.id === id);
@@ -1647,6 +1722,7 @@
         if (apt.photo) setPhoto(apt.photo);
         setRating(apt.rating || 0);
         document.getElementById('tour-date').value = apt.tourDate || '';
+        renderTodosList(apt.todos || []);
         document.getElementById('delete-btn').style.display = 'inline-block';
       }
     }
@@ -1680,6 +1756,8 @@
       photo: document.getElementById('photo').value,
       rating: Number(document.getElementById('rating').value) || 0,
       tourDate: document.getElementById('tour-date').value || '',
+      todos: collectTodosFromDOM().filter(t => t.text),
+      archived: existing ? !!existing.archived : false,
       addedAt: existing ? existing.addedAt : now,
       updatedAt: now,
       statusHistory: existing ? existing.statusHistory : []
@@ -1924,6 +2002,17 @@
 
       const notes = a.notes ? `<div class="notes">${escapeHtml(a.notes)}</div>` : '';
 
+      const todoList = (a.todos && a.todos.length) ? `
+        <div class="card-todos">
+          <div class="todo-progress">Checklist ${a.todos.filter(t => t.done).length}/${a.todos.length}</div>
+          ${a.todos.map(t => `
+            <label class="card-todo ${t.done ? 'done' : ''}">
+              <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleTodo('${a.id}', '${t.id}')">
+              <span>${escapeHtml(t.text)}</span>
+            </label>
+          `).join('')}
+        </div>` : '';
+
       const photo = a.photo
         ? `<div class="card-photo" style='background-image: url("${escapeHtml(a.photo)}")'></div>`
         : '';
@@ -1952,6 +2041,7 @@
           <div class="chips">${chips}</div>
           ${prosCons}
           ${notes}
+          ${todoList}
           <div class="status-pipeline">${pipeline}</div>
           <div class="card-footer">
             <span class="meta">Updated ${fmtDate(a.updatedAt)}</span>
