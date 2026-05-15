@@ -479,6 +479,36 @@
   }
   .site-footer a:hover { text-decoration: underline; }
   .site-footer .sep { margin: 0 6px; opacity: 0.5; }
+  /* Save toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--accent);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+    z-index: 200;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+    pointer-events: none;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  @media (max-width: 600px) {
+    .toast {
+      bottom: 16px;
+      right: 16px;
+      left: 16px;
+      text-align: center;
+    }
+  }
   /* Mobile polish */
   @media (max-width: 600px) {
     header { padding: 14px 16px; }
@@ -914,6 +944,8 @@
   </div>
 </div>
 
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
 <script>
   const STORAGE_KEY = 'apartment-tracker-v1';
   const STATUSES = ['saved', 'messaged', 'replied', 'tour-scheduled', 'toured', 'applied', 'accepted', 'rejected', 'passed'];
@@ -945,6 +977,17 @@
     }
     writeToLinkedFile();
     renderSaveStatus();
+    showToast('✓ Saved');
+  }
+
+  let toastTimeout = null;
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => toast.classList.remove('show'), 1800);
   }
 
   // ---- IndexedDB: persist file handle across sessions ----
@@ -1036,6 +1079,7 @@
       }
       render();
       renderSaveStatus();
+      showToast(mode === 'open' ? '✓ Linked to file' : '✓ File created & linked');
     } catch (e) {
       if (e.name !== 'AbortError') alert('Could not link file: ' + e.message);
     }
@@ -1099,6 +1143,7 @@
       markSaved();
       render();
       renderSaveStatus();
+      showToast('✓ Pulled from file');
     } catch (e) {
       alert('Could not pull from file: ' + e.message);
     }
@@ -1867,6 +1912,7 @@
     URL.revokeObjectURL(url);
     markSaved();
     renderSaveStatus();
+    showToast('✓ Backup downloaded');
   }
 
   function importData(e) {
@@ -1881,6 +1927,7 @@
         apartments = data;
         save();
         render();
+        showToast(`✓ Imported ${data.length} entries`);
       } catch (err) {
         alert('Could not import file: ' + err.message);
       }
