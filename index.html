@@ -1063,6 +1063,7 @@
     showToast(apt.pinned ? '📌 Pinned to top' : '✓ Unpinned');
   }
   let fileHandle = null;
+  let fileWriteError = false;
   const supportsFSA = 'showSaveFilePicker' in window;
 
   function load() {
@@ -1081,6 +1082,7 @@
       }
       return;
     }
+    localStorage.setItem('lastLocalSaveAt', new Date().toISOString());
     writeToLinkedFile();
     renderSaveStatus();
     showToast('✓ Saved');
@@ -1202,18 +1204,39 @@
     try {
       const perm = await fileHandle.queryPermission({ mode: 'readwrite' });
       if (perm !== 'granted') {
-        if (!force) return false; // don't prompt silently on every change
+        if (!force) { // don't prompt silently on every change
+          fileWriteError = true; renderSaveStatus(); return false;
+        }
         const req = await fileHandle.requestPermission({ mode: 'readwrite' });
-        if (req !== 'granted') return false;
+        if (req !== 'granted') { fileWriteError = true; renderSaveStatus(); return false; }
       }
       const writable = await fileHandle.createWritable();
       await writable.write(JSON.stringify(apartments, null, 2));
       await writable.close();
       markSaved();
+      if (fileWriteError) { fileWriteError = false; renderSaveStatus(); }
       return true;
     } catch (e) {
       console.warn('Auto-save failed:', e);
+      fileWriteError = true; renderSaveStatus();
       return false;
+    }
+  }
+
+  async function reconnectFile() {
+    if (!fileHandle) return;
+    try {
+      const req = await fileHandle.requestPermission({ mode: 'readwrite' });
+      if (req !== 'granted') {
+        alert('Permission denied. Your changes are still saved in this browser — use "Save backup", or re-link the file with "Change auto-save file…".');
+        return;
+      }
+      fileWriteError = false;
+      const ok = await writeToLinkedFile(true);
+      renderSaveStatus();
+      if (ok) showToast('✓ Reconnected & synced');
+    } catch (e) {
+      alert('Could not reconnect: ' + e.message);
     }
   }
 
@@ -1285,9 +1308,15 @@
 
     if (fileHandle) {
       const name = fileHandle.name || 'linked file';
-      el.className = 'save-status linked';
-      el.innerHTML = `<span class="dot"></span>Auto-saving to <strong>${escapeHtml(name)}</strong> &middot; <a onclick="unlinkFile()">unlink</a>`;
-      banner.style.display = 'none';
+      if (fileWriteError) {
+        el.className = 'save-status dirty';
+        el.innerHTML = `<span class="dot"></span>⚠ Saved in this browser, but <strong>not syncing</strong> to ${escapeHtml(name)} &middot; <a onclick="reconnectFile()">reconnect</a>`;
+        banner.style.display = 'none';
+      } else {
+        el.className = 'save-status linked';
+        el.innerHTML = `<span class="dot"></span>✓ Saved &amp; auto-syncing to <strong>${escapeHtml(name)}</strong> &middot; <a onclick="unlinkFile()">unlink</a>`;
+        banner.style.display = 'none';
+      }
       return;
     }
 
@@ -1297,31 +1326,33 @@
       return;
     }
 
-    const dirty = isDirty();
-    const lastSaved = localStorage.getItem('lastSavedAt');
-    if (!dirty && lastSaved) {
-      el.className = 'save-status saved';
-      el.innerHTML = `<span class="dot"></span>Backup saved ${fmtDate(lastSaved)}`;
-      banner.style.display = 'none';
+    // No linked file: data still lives durably in this browser's storage.
+    const lastLocal = localStorage.getItem('lastLocalSaveAt');
+    const lastBackup = localStorage.getItem('lastSavedAt');
+    let html = `<span class="dot"></span>✓ Saved in this browser`;
+    if (lastLocal) html += ` ${fmtDate(lastLocal)}`;
+    if (lastBackup && !isDirty()) {
+      html += ` &middot; backed up ${fmtDate(lastBackup)}`;
     } else {
-      const n = unsavedCount();
-      el.className = 'save-status dirty';
-      el.innerHTML = `<span class="dot"></span>${n} unsaved change${n === 1 ? '' : 's'} since last backup`;
-      // Show prominent banner once user has 3+ unsaved changes, or never saved
-      if (n >= 3 || !lastSaved) {
-        bannerText.textContent = lastSaved
-          ? `You have ${n} unsaved change${n === 1 ? '' : 's'}. Click "Save backup" to download a JSON file.`
-          : `Your data is stored only in this browser. Save a backup file so it's not lost.`;
-        banner.style.display = 'flex';
-      } else {
-        banner.style.display = 'none';
-      }
+      html += ` &middot; <a onclick="exportData()">download a backup</a>`;
+    }
+    el.className = 'save-status saved';
+    el.innerHTML = html;
+
+    // Calm, accurate one-time nudge: only if a real list exists and it's never been backed up or linked.
+    if (!lastBackup && apartments.length >= 5) {
+      bannerText.textContent = 'Your apartments are saved in this browser and survive refreshes. To guard against clearing browser data or switching devices, download a backup or link an auto-save file.';
+      banner.style.display = 'flex';
+    } else {
+      banner.style.display = 'none';
     }
   }
 
-  // Warn before closing tab if there are unsaved changes and no linked file
+  // Data persists in localStorage across tab close, so we only warn in the
+  // genuinely risky case: a linked file whose sync is currently broken
+  // (changes are in this browser but haven't reached the shared file).
   window.addEventListener('beforeunload', (e) => {
-    if (!fileHandle && isDirty()) {
+    if (fileHandle && fileWriteError) {
       e.preventDefault();
       e.returnValue = '';
     }
