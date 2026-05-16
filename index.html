@@ -479,6 +479,17 @@
   }
   .site-footer a:hover { text-decoration: underline; }
   .site-footer .sep { margin: 0 6px; opacity: 0.5; }
+  /* Add-to-calendar links */
+  .cal-links {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 0 0 8px;
+  }
+  .cal-links a {
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+  }
   /* Pinned cards */
   .card.pinned {
     border-color: var(--accent);
@@ -1819,6 +1830,66 @@
     render();
   }
 
+  // ---- Calendar export ----
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function toUTCStamp(dateOrStr) {
+    const d = new Date(dateOrStr);
+    return d.getUTCFullYear() + pad2(d.getUTCMonth() + 1) + pad2(d.getUTCDate())
+      + 'T' + pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + '00Z';
+  }
+  function icsEscape(s) {
+    return String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;')
+      .replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  }
+  function tourTimes(apt) {
+    const start = new Date(apt.tourDate);
+    const end = new Date(start.getTime() + 60 * 60 * 1000); // default 1 hour
+    return { start: toUTCStamp(start), end: toUTCStamp(end) };
+  }
+  function buildICS(apt) {
+    const { start, end } = tourTimes(apt);
+    const lines = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Apartment Tracker//EN',
+      'BEGIN:VEVENT',
+      'UID:apt-' + apt.id + '@apartment-tracker',
+      'DTSTAMP:' + toUTCStamp(new Date()),
+      'DTSTART:' + start,
+      'DTEND:' + end,
+      'SUMMARY:' + icsEscape('Apartment tour: ' + (apt.address || '')),
+      'LOCATION:' + icsEscape(apt.address || ''),
+      'DESCRIPTION:' + icsEscape((apt.url ? apt.url + '\n' : '') + (apt.notes || '')),
+      'BEGIN:VALARM', 'TRIGGER:-PT1H', 'ACTION:DISPLAY',
+      'DESCRIPTION:Apartment tour reminder', 'END:VALARM',
+      'END:VEVENT', 'END:VCALENDAR'
+    ];
+    return lines.join('\r\n');
+  }
+  function downloadICS(id) {
+    const apt = apartments.find(a => a.id === id);
+    if (!apt || !apt.tourDate) return;
+    const blob = new Blob([buildICS(apt)], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = ('tour-' + (apt.address || 'apartment')).replace(/[^\w]+/g, '-').slice(0, 40) + '.ics';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('✓ Calendar file downloaded');
+  }
+  function googleCalUrl(apt) {
+    const { start, end } = tourTimes(apt);
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: 'Apartment tour: ' + (apt.address || ''),
+      dates: start + '/' + end,
+      details: (apt.url ? apt.url + '\n' : '') + (apt.notes || ''),
+      location: apt.address || ''
+    });
+    return 'https://www.google.com/calendar/render?' + params.toString();
+  }
+
   function fmtTour(s) {
     if (!s) return '';
     const d = new Date(s);
@@ -2051,6 +2122,7 @@
         const style = past ? ' style="background:var(--bg);color:var(--muted)"' : '';
         return `<div class="card-tour-date"${style}>📅 ${prefix}${escapeHtml(fmtTour(a.tourDate))}</div>`;
       })();
+      const calLinks = a.tourDate ? `<div class="cal-links">Add tour to: <a onclick="downloadICS('${a.id}')">Apple Calendar</a> · <a href="${googleCalUrl(a)}" target="_blank" rel="noopener">Google Calendar</a></div>` : '';
 
       return `
         <div class="card${a.pinned ? ' pinned' : ''}">
@@ -2061,6 +2133,7 @@
           </div>
           ${stars}
           ${tourBadge}
+          ${calLinks}
           ${a.rent ? `<div class="rent">$${a.rent.toLocaleString()}/mo</div>` : ''}
           <div class="chips">${chips}</div>
           ${prosCons}
