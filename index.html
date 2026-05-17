@@ -1033,7 +1033,7 @@
     applied: 'Applied', accepted: 'Accepted', rejected: 'Rejected', passed: 'Passed'
   };
 
-  let apartments = load();
+  let apartments = [];
   let currentTab = 'active';
 
   function setTab(t) {
@@ -1066,22 +1066,35 @@
   let fileWriteError = false;
   const supportsFSA = 'showSaveFilePicker' in window;
 
-  function load() {
+  // Primary store is IndexedDB (large, disk-backed). localStorage was
+  // ~5MB and overflowed with photos; we migrate off it once.
+  async function loadData() {
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    } catch { return []; }
+      const idbData = await idbGet(STORAGE_KEY, 'data');
+      if (Array.isArray(idbData)) return idbData;
+    } catch (e) { console.warn('IDB read failed:', e); }
+    // Migrate legacy localStorage data, then free that space.
+    try {
+      const ls = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (Array.isArray(ls)) {
+        try {
+          await idbPut(STORAGE_KEY, ls, 'data');
+          localStorage.removeItem(STORAGE_KEY); // reclaim the ~5MB blob
+        } catch (e) { console.warn('IDB migration write failed:', e); }
+        return ls;
+      }
+    } catch {}
+    return [];
+  }
+
+  function persistLocal() {
+    idbPut(STORAGE_KEY, apartments, 'data').catch(e => {
+      console.warn('IndexedDB save failed:', e);
+      alert('Could not save locally (' + (e.message || e.name) + '). Use "Save backup" to export a JSON file so nothing is lost.');
+    });
   }
   function save() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(apartments));
-    } catch (e) {
-      if (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014) {
-        alert('Browser storage is full — usually from photos. Use "Save backup" to export a JSON file, then remove some photos to free space, or link an auto-save file.');
-      } else {
-        alert('Could not save: ' + e.message);
-      }
-      return;
-    }
+    persistLocal();
     localStorage.setItem('lastLocalSaveAt', new Date().toISOString());
     writeToLinkedFile();
     renderSaveStatus();
@@ -1101,35 +1114,39 @@
   // ---- IndexedDB: persist file handle across sessions ----
   function openDB() {
     return new Promise((res, rej) => {
-      const r = indexedDB.open('apt-tracker', 1);
-      r.onupgradeneeded = () => r.result.createObjectStore('handles');
+      const r = indexedDB.open('apt-tracker', 2);
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        if (!db.objectStoreNames.contains('handles')) db.createObjectStore('handles');
+        if (!db.objectStoreNames.contains('data')) db.createObjectStore('data');
+      };
       r.onsuccess = () => res(r.result);
       r.onerror = () => rej(r.error);
     });
   }
-  async function idbPut(key, val) {
+  async function idbPut(key, val, store = 'handles') {
     const db = await openDB();
     return new Promise((res, rej) => {
-      const tx = db.transaction('handles', 'readwrite');
-      tx.objectStore('handles').put(val, key);
+      const tx = db.transaction(store, 'readwrite');
+      tx.objectStore(store).put(val, key);
       tx.oncomplete = () => res();
       tx.onerror = () => rej(tx.error);
     });
   }
-  async function idbGet(key) {
+  async function idbGet(key, store = 'handles') {
     const db = await openDB();
     return new Promise((res) => {
-      const tx = db.transaction('handles', 'readonly');
-      const req = tx.objectStore('handles').get(key);
+      const tx = db.transaction(store, 'readonly');
+      const req = tx.objectStore(store).get(key);
       req.onsuccess = () => res(req.result || null);
       req.onerror = () => res(null);
     });
   }
-  async function idbDel(key) {
+  async function idbDel(key, store = 'handles') {
     const db = await openDB();
     return new Promise((res) => {
-      const tx = db.transaction('handles', 'readwrite');
-      tx.objectStore('handles').delete(key);
+      const tx = db.transaction(store, 'readwrite');
+      tx.objectStore(store).delete(key);
       tx.oncomplete = () => res();
     });
   }
@@ -1169,7 +1186,7 @@
           }
         }
         apartments = data;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(apartments));
+        persistLocal();
         didReadFile = true;
       } else {
         handle = await window.showSaveFilePicker({
@@ -1268,7 +1285,7 @@
         return;
       }
       apartments = data;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(apartments));
+      persistLocal();
       markSaved();
       render();
       renderSaveStatus();
@@ -2231,9 +2248,12 @@
     setTimeout(() => autoFillFromUrl(), 50);
   });
 
-  render();
-  renderSaveStatus();
-  tryRestoreHandle();
+  (async function init() {
+    apartments = await loadData();
+    render();
+    renderSaveStatus();
+    await tryRestoreHandle();
+  })();
 </script>
 
 </body>
